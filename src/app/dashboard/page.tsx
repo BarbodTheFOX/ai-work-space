@@ -27,23 +27,23 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-eventum-muted">Founder execution cockpit</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Today&apos;s execution pulse</h1>
+          <p className="text-sm text-eventum-muted">Workspace overview</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Today</h1>
         </div>
         <Button onClick={() => setCreateOpen(true)}>Create Task</Button>
       </div>
 
       <div className="grid gap-3 md:grid-cols-5">
-        <StatCard label="Active" value={active.length} helper="Open work items" />
+        <StatCard label="Open tasks" value={active.length} helper="Work still moving" />
         <StatCard label="Due today" value={dueToday.length} tone="info" />
         <StatCard label="Overdue" value={overdue.length} tone="danger" />
-        <StatCard label="Review" value={review.length} tone="purple" />
+        <StatCard label="Needs review" value={review.length} tone="warning" />
         <StatCard label="Blocked" value={blocked.length} tone="warning" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_1fr_0.9fr]">
         <Card>
-          <SectionHeader title="Today" eyebrow="Late / due / review" />
+          <SectionHeader title="Top tasks" eyebrow="Due, late, or waiting" />
           <div className="space-y-3">
             {[...overdue, ...dueToday, ...review].slice(0, 6).map((task) => (
               <TaskCard key={task.id} task={task} onOpen={setSelectedTask} />
@@ -51,7 +51,7 @@ export default function DashboardPage() {
           </div>
         </Card>
         <Card>
-          <SectionHeader title="Today Routine Checklist" eyebrow="Team routine status" />
+          <SectionHeader title="Routine checklist" eyebrow="Today" />
           <RoutineChecklist
             routines={routines.filter((routine) => routine.active)}
             completions={routineCompletions.filter((completion) => completion.date === today)}
@@ -65,7 +65,7 @@ export default function DashboardPage() {
           />
         </Card>
         <Card>
-          <SectionHeader title="AI Founder Briefing" eyebrow="Mock draft" />
+          <SectionHeader title="Assistant note" eyebrow="Mock draft" />
           <p className="text-sm leading-6 text-eventum-muted">{founderBriefing?.briefing}</p>
           <ul className="mt-4 space-y-2 text-sm text-eventum-text">
             {founderBriefing?.recommended_actions?.map((item) => <li key={item}>- {item}</li>)}
@@ -82,7 +82,7 @@ export default function DashboardPage() {
               return (
                 <div key={user.id}>
                   <div className="mb-1 flex justify-between text-sm"><span>{user.name}</span><span>{owned} active</span></div>
-                  <div className="h-1 rounded-full bg-white/[0.08]"><div className="h-full rounded-full bg-eventum-purple" style={{ width: `${Math.min(owned * 12, 100)}%` }} /></div>
+                  <div className="h-1.5 rounded-full bg-eventum-soft"><div className="h-full rounded-full bg-eventum-clay" style={{ width: `${Math.min(owned * 12, 100)}%` }} /></div>
                 </div>
               );
             })}

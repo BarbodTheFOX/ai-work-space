@@ -33,7 +33,7 @@ export function TaskCard({ task, onOpen }: { task: Task; onOpen?: (task: Task) =
     <button
       type="button"
       onClick={() => onOpen?.(task)}
-      className="w-full rounded-md border border-eventum-border bg-eventum-elevated/70 p-3.5 text-left transition hover:border-eventum-borderStrong hover:bg-eventum-soft/60"
+      className="w-full rounded-xl border border-eventum-border bg-eventum-elevated p-3.5 text-left transition hover:border-eventum-borderStrong hover:bg-eventum-surface"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -47,7 +47,7 @@ export function TaskCard({ task, onOpen }: { task: Task; onOpen?: (task: Task) =
       </div>
       <div className="mt-3 flex items-center justify-between text-xs text-eventum-muted">
         <span>{owner?.avatar} {owner?.name}</span>
-        <span className={overdue ? "text-red-300" : ""}>{formatDate(task.deadline)}</span>
+        <span className={overdue ? "text-eventum-cinnabar" : ""}>{formatDate(task.deadline)}</span>
       </div>
       <div className="mt-2.5">
         <ProgressBar value={task.progress} />
@@ -65,7 +65,7 @@ export function TaskDrawer({ task, onClose }: { task: Task | null; onClose: () =
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/60">
-      <aside className="h-full w-full max-w-xl overflow-y-auto border-l border-eventum-border bg-eventum-surface p-7 shadow-panel">
+      <aside className="h-full w-full max-w-xl overflow-y-auto border-l border-eventum-border bg-eventum-page p-7 shadow-subtle">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm text-eventum-muted">{project?.name}</p>
@@ -77,19 +77,19 @@ export function TaskDrawer({ task, onClose }: { task: Task | null; onClose: () =
         </div>
         <p className="mt-4 text-eventum-muted">{task.description}</p>
         <dl className="mt-6 grid grid-cols-2 gap-3 text-sm">
-          <div className="rounded-md border border-eventum-border bg-eventum-elevated p-3">
+          <div className="rounded-xl border border-eventum-border bg-eventum-elevated p-3">
             <dt className="text-eventum-dim">Owner</dt>
             <dd className="mt-1 text-eventum-text">{owner?.name}</dd>
           </div>
-          <div className="rounded-md border border-eventum-border bg-eventum-elevated p-3">
+          <div className="rounded-xl border border-eventum-border bg-eventum-elevated p-3">
             <dt className="text-eventum-dim">Deadline</dt>
             <dd className="mt-1 text-eventum-text">{formatDate(task.deadline)}</dd>
           </div>
-          <div className="rounded-md border border-eventum-border bg-eventum-elevated p-3">
+          <div className="rounded-xl border border-eventum-border bg-eventum-elevated p-3">
             <dt className="text-eventum-dim">Source</dt>
             <dd className="mt-1 text-eventum-text">{task.source}</dd>
           </div>
-          <div className="rounded-md border border-eventum-border bg-eventum-elevated p-3">
+          <div className="rounded-xl border border-eventum-border bg-eventum-elevated p-3">
             <dt className="text-eventum-dim">Timeframe</dt>
             <dd className="mt-1 text-eventum-text">{task.timeframe}</dd>
           </div>
@@ -103,7 +103,7 @@ export function TaskDrawer({ task, onClose }: { task: Task | null; onClose: () =
             value={task.progress}
             disabled={!canEdit}
             onChange={(event) => updateTaskProgress(task.id, Number(event.target.value))}
-            className="w-full accent-eventum-purple"
+            className="w-full accent-eventum-clay"
           />
         </div>
         <div className="mt-6 flex flex-wrap gap-2">
@@ -142,14 +142,14 @@ export function CreateTaskModal({ open, onClose }: { open: boolean; onClose: () 
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Task title"
-            className="w-full rounded border border-eventum-border bg-eventum-elevated px-3 py-2 outline-none focus:border-eventum-borderStrong"
+            className="w-full rounded-lg border border-eventum-border bg-eventum-elevated px-3 py-2 outline-none focus:border-eventum-borderStrong"
           />
-          <select value={ownerId} onChange={(event) => setOwnerId(event.target.value)} className="w-full rounded border border-eventum-border bg-eventum-elevated px-3 py-2">
+          <select value={ownerId} onChange={(event) => setOwnerId(event.target.value)} className="w-full rounded-lg border border-eventum-border bg-eventum-elevated px-3 py-2">
             {users.map((user) => (
               <option key={user.id} value={user.id}>{user.name}</option>
             ))}
           </select>
-          <select value={projectId} onChange={(event) => setProjectId(event.target.value)} className="w-full rounded border border-eventum-border bg-eventum-elevated px-3 py-2">
+          <select value={projectId} onChange={(event) => setProjectId(event.target.value)} className="w-full rounded-lg border border-eventum-border bg-eventum-elevated px-3 py-2">
             {projects.map((project) => (
               <option key={project.id} value={project.id}>{project.name}</option>
             ))}

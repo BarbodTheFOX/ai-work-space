@@ -10,7 +10,7 @@ export function RoutineProgressWidget({
   summary,
 }: RoutineProgressWidgetProps) {
   return (
-    <section className="rounded-md border border-eventum-border bg-eventum-surface p-5 shadow-panel">
+    <section className="rounded-xl border border-eventum-border bg-eventum-surface p-5 shadow-panel">
       <header className="flex items-start justify-between gap-4">
         <h2 className="text-[15px] font-semibold">{title}</h2>
         <p className="text-sm text-eventum-muted">{summary.completionRate}% completion rate</p>
@@ -26,11 +26,11 @@ export function RoutineProgressWidget({
         </div>
         <div>
           <dt className="text-eventum-dim">Missed today</dt>
-          <dd className="text-lg font-semibold text-red-300">{summary.missedToday}</dd>
+          <dd className="text-lg font-semibold text-eventum-cinnabar">{summary.missedToday}</dd>
         </div>
         <div>
           <dt className="text-eventum-dim">Skipped today</dt>
-          <dd className="text-lg font-semibold text-amber-300">{summary.skippedToday}</dd>
+          <dd className="text-lg font-semibold text-eventum-mocha">{summary.skippedToday}</dd>
         </div>
       </dl>
     </section>

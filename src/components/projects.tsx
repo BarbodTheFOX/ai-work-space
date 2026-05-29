@@ -31,7 +31,7 @@ export function ProjectCard({ project }: { project: Project }) {
         <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
           <div><p className="text-eventum-dim">Active</p><p>{active}</p></div>
           <div><p className="text-eventum-dim">Done</p><p>{done}</p></div>
-          <div><p className="text-eventum-dim">Overdue</p><p className="text-red-300">{overdue}</p></div>
+          <div><p className="text-eventum-dim">Overdue</p><p className="text-eventum-cinnabar">{overdue}</p></div>
         </div>
         <p className="mt-4 text-sm text-eventum-muted">Owner: {owner?.name}</p>
       </Card>

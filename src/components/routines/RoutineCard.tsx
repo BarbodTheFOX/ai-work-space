@@ -26,9 +26,9 @@ export function RoutineCard({
   const state = completion?.status ?? "pending";
 
   return (
-    <article data-routine-id={routine.id} className="rounded-md border border-eventum-border bg-eventum-elevated/70 p-3.5">
+    <article data-routine-id={routine.id} className="rounded-xl border border-eventum-border bg-eventum-elevated p-3.5">
       <header className="flex items-start justify-between gap-3">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-eventum-dim">{routine.frequency}</p>
+        <p className="text-[11px] text-eventum-dim">{routine.frequency}</p>
         <RoutineCompletionBadge state={state} />
       </header>
       <h3 className="mt-3 text-sm font-medium text-eventum-text">{routine.title}</h3>

@@ -6,7 +6,7 @@ import { TopBar } from "./TopBar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-eventum-bg text-eventum-text">
       <Sidebar />
       <div className="min-w-0 flex-1">
         <TopBar />
@@ -14,7 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.24 }}
-          className="mx-auto max-w-[1420px] px-8 py-8"
+          className="mx-auto max-w-[1320px] px-8 py-8"
         >
           {children}
         </motion.main>

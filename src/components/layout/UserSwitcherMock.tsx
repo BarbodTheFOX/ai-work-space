@@ -11,7 +11,7 @@ export function UserSwitcherMock() {
       <select
         value={currentUser.id}
         onChange={(event) => setCurrentUserId(event.target.value)}
-        className="w-full rounded border border-eventum-border bg-eventum-elevated px-2.5 py-1.5 text-sm text-eventum-text outline-none focus:border-eventum-borderStrong"
+        className="w-full rounded-lg border border-eventum-border bg-eventum-elevated px-2.5 py-1.5 text-sm text-eventum-text outline-none focus:border-eventum-borderStrong"
       >
         {users.map((user) => (
           <option key={user.id} value={user.id}>

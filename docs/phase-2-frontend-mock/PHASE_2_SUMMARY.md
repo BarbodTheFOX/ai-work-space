@@ -135,19 +135,71 @@ Local mock data includes:
 Run:
 
 ```bash
-npm install
 npm run dev
 ```
 
 Then open:
 
 ```text
-http://localhost:3000
+http://127.0.0.1:3000
 ```
 
 ## 8. Known Limitations
 
-- `npm install` timed out in this environment, so dependencies were not installed here.
-- Because dependencies were not installed, `npm run build` could not be verified in this turn.
-- The existing `package-lock.json` is still the empty lockfile from before the scaffold; `npm install` should regenerate it.
 - All data resets on refresh because Phase 2 intentionally uses local mock state only.
+- Phase 2 still has no backend persistence.
+- Visual QA should continue route by route because the current mock uses dense sample data.
+
+## 9. Eventum Workspace OS Redesign
+
+The Phase 2 frontend mock has been visually reset toward the Eventum Workspace OS direction.
+
+Redesign changes:
+
+- Switched from dark cockpit styling to a warm light workspace palette.
+- Replaced dashboard-heavy visual language with page-first workspace sections.
+- Made Sidebar feel like Notion-style workspace navigation.
+- Reduced TopBar visual weight.
+- Reworked cards into soft document/database blocks.
+- Changed primary action color from purple to warm Clay Soil/Mocha.
+- Reduced purple to a tiny legacy accent only.
+- Removed neon/glow/gradient styling.
+- Made tasks more database-row-like.
+- Made routines feel like checklist rows.
+- Made AI areas feel like quiet assistant blocks.
+- Made reports feel closer to weekly review pages.
+
+Changed files:
+
+- `tailwind.config.ts`
+- `src/app/globals.css`
+- `src/app/dashboard/page.tsx`
+- `src/components/ui.tsx`
+- `src/components/layout/AppShell.tsx`
+- `src/components/layout/Sidebar.tsx`
+- `src/components/layout/TopBar.tsx`
+- `src/components/layout/UserSwitcherMock.tsx`
+- `src/components/tasks.tsx`
+- `src/components/projects.tsx`
+- `src/components/page-sections.tsx`
+- `src/components/routines/RoutineCard.tsx`
+- `src/components/routines/RoutineProgressWidget.tsx`
+- `docs/DESIGN_DIRECTION.md`
+
+Still mock-only:
+
+- Mock users
+- Mock tasks
+- Mock routine completions
+- Mock meetings
+- Mock notes
+- Mock reports
+- Mock AI suggestions
+
+What to test next:
+
+- Open `/dashboard` and confirm the app feels like a warm workspace home page.
+- Switch mock users and verify Today/My Tasks still responds.
+- Open `/team-tasks` and verify list/board interactions still work.
+- Check routine done/skip interactions.
+- Open note, meeting, project, report, and AI pages for visual consistency.
