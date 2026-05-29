@@ -70,7 +70,7 @@ export function MyTasksView() {
 export function TeamTasksView() {
   const { tasks, users, projects, today } = useOps();
   const [view, setView] = useState<"status" | "calendar">("status");
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
   const [owner, setOwner] = useState("all");
   const [status, setStatus] = useState("all");
   const [project, setProject] = useState("all");
@@ -111,7 +111,7 @@ export function TeamTasksView() {
       {view === "status" ? (
         <StatusBoard tasks={filtered} statuses={statuses} onOpen={setSelectedTask} />
       ) : (
-        <CalendarBoard tasks={filtered} today={today} weekOffset={weekOffset} setWeekOffset={setWeekOffset} onOpen={setSelectedTask} />
+        <MonthlyCalendarBoard tasks={filtered} today={today} monthOffset={monthOffset} setMonthOffset={setMonthOffset} onOpen={setSelectedTask} />
       )}
       <TaskDrawer task={selectedTask} onClose={() => setSelectedTask(null)} />
       <CreateTaskModal open={createOpen} onClose={() => setCreateOpen(false)} />
@@ -383,63 +383,69 @@ function StatusBoard({ tasks, statuses, onOpen }: { tasks: Task[]; statuses: Tas
   );
 }
 
-function CalendarBoard({
+function MonthlyCalendarBoard({
   tasks,
   today,
-  weekOffset,
-  setWeekOffset,
+  monthOffset,
+  setMonthOffset,
   onOpen,
 }: {
   tasks: Task[];
   today: string;
-  weekOffset: number;
-  setWeekOffset: (value: number) => void;
+  monthOffset: number;
+  setMonthOffset: (value: number) => void;
   onOpen: (task: Task) => void;
 }) {
-  const base = new Date(`${today}T00:00:00`);
-  const monday = new Date(base);
-  const day = monday.getDay() || 7;
-  monday.setDate(monday.getDate() - day + 1 + weekOffset * 7);
-  const days = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + index);
-    const id = date.toISOString().slice(0, 10);
+  const todayDate = parseDate(today);
+  const visibleMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + monthOffset, 1);
+  const visibleYear = visibleMonth.getFullYear();
+  const visibleMonthIndex = visibleMonth.getMonth();
+  const firstDay = new Date(visibleYear, visibleMonthIndex, 1);
+  const mondayStartOffset = (firstDay.getDay() + 6) % 7;
+  const gridStart = new Date(firstDay);
+  gridStart.setDate(firstDay.getDate() - mondayStartOffset);
+  const lastDay = new Date(visibleYear, visibleMonthIndex + 1, 0);
+  const sundayEndOffset = (7 - ((lastDay.getDay() + 6) % 7) - 1) % 7;
+  const totalDays = mondayStartOffset + lastDay.getDate() + sundayEndOffset;
+  const days = Array.from({ length: totalDays }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    const id = toDateId(date);
     return {
       id,
-      label: date.toLocaleDateString("en", { weekday: "short" }),
-      date: date.toLocaleDateString("en", { month: "short", day: "numeric" }),
+      dayNumber: date.getDate(),
+      inMonth: date.getMonth() === visibleMonthIndex,
+      isToday: id === today,
+      tasks: tasks.filter((task) => task.deadline === id),
     };
   });
   const noDateTasks = tasks.filter((task) => !task.deadline);
+  const monthLabel = visibleMonth.toLocaleDateString("en", { month: "long", year: "numeric" });
 
   return (
     <div className="space-y-4">
-      <Card className="flex items-center justify-between p-3 shadow-none">
+      <Card className="flex flex-wrap items-center justify-between gap-3 p-3 shadow-none">
         <div>
-          <p className="text-sm font-medium">Week of {days[0].date}</p>
-          <p className="text-xs text-eventum-muted">Notion-style calendar database view</p>
+          <p className="text-sm font-medium">{monthLabel}</p>
+          <p className="text-xs text-eventum-muted">Monthly Notion-style calendar database view</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setWeekOffset(weekOffset - 1)}>Previous week</Button>
-          <Button variant="ghost" onClick={() => setWeekOffset(0)}>Today</Button>
-          <Button variant="secondary" onClick={() => setWeekOffset(weekOffset + 1)}>Next week</Button>
+          <Button variant="secondary" onClick={() => setMonthOffset(monthOffset - 1)}>Previous month</Button>
+          <Button variant="ghost" onClick={() => setMonthOffset(0)}>Today</Button>
+          <Button variant="secondary" onClick={() => setMonthOffset(monthOffset + 1)}>Next month</Button>
         </div>
       </Card>
-      <div className="grid gap-3 xl:grid-cols-7">
-        {days.map((day) => {
-          const dayTasks = tasks.filter((task) => task.deadline === day.id);
-          return (
-            <Card key={day.id} className="min-h-72 p-3 shadow-none">
-              <div className="mb-3">
-                <p className="text-sm font-semibold">{day.label}</p>
-                <p className="text-xs text-eventum-muted">{day.date}</p>
-              </div>
-              <div className="space-y-2">
-                {dayTasks.length === 0 ? <p className="text-xs text-eventum-muted">No due tasks</p> : dayTasks.map((task) => <TaskCard key={task.id} task={task} onOpen={onOpen} />)}
-              </div>
-            </Card>
-          );
-        })}
+      <div className="overflow-hidden rounded-xl border border-eventum-border bg-eventum-surface">
+        <div className="grid grid-cols-7 border-b border-eventum-border bg-eventum-elevated">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((weekday) => (
+            <div key={weekday} className="px-3 py-2 text-xs font-medium text-eventum-muted">{weekday}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((day) => (
+            <CalendarDayCell key={day.id} day={day} onOpen={onOpen} />
+          ))}
+        </div>
       </div>
       {noDateTasks.length > 0 ? (
         <Card>
@@ -449,6 +455,80 @@ function CalendarBoard({
       ) : null}
     </div>
   );
+}
+
+function CalendarDayCell({
+  day,
+  onOpen,
+}: {
+  day: { id: string; dayNumber: number; inMonth: boolean; isToday: boolean; tasks: Task[] };
+  onOpen: (task: Task) => void;
+}) {
+  return (
+    <div
+      className={[
+        "min-h-32 border-b border-r border-eventum-border p-2.5",
+        day.inMonth ? "bg-eventum-surface" : "bg-eventum-elevated/45 text-eventum-dim",
+        day.isToday ? "ring-1 ring-inset ring-eventum-clay/40" : "",
+      ].join(" ")}
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <span
+          className={[
+            "flex h-6 min-w-6 items-center justify-center rounded-md text-xs font-medium",
+            day.isToday ? "bg-eventum-clay text-white" : day.inMonth ? "text-eventum-muted" : "text-eventum-dim",
+          ].join(" ")}
+        >
+          {day.dayNumber}
+        </span>
+        {day.tasks.length > 2 ? <span className="text-[11px] text-eventum-dim">{day.tasks.length} tasks</span> : null}
+      </div>
+      <div className="space-y-1.5">
+        {day.tasks.slice(0, 4).map((task) => (
+          <CalendarTaskPill key={task.id} task={task} onOpen={onOpen} />
+        ))}
+        {day.tasks.length > 4 ? <p className="text-[11px] text-eventum-dim">+{day.tasks.length - 4} more</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function CalendarTaskPill({ task, onOpen }: { task: Task; onOpen: (task: Task) => void }) {
+  const { users } = useOps();
+  const owner = users.find((user) => user.id === task.owner_id);
+  const priorityMark = task.priority === "urgent" ? "!" : task.priority === "high" ? "H" : task.priority === "normal" ? "N" : "L";
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(task)}
+      className="group w-full rounded-lg border border-eventum-border bg-eventum-elevated px-2 py-1.5 text-left text-xs transition hover:border-eventum-borderStrong hover:bg-eventum-soft"
+      title={task.title}
+    >
+      <span className="flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-eventum-clay" />
+        <span className="min-w-0 flex-1 truncate font-medium text-eventum-text">{task.title}</span>
+        <span className="shrink-0 text-[10px] text-eventum-dim">{owner?.avatar ?? owner?.name.slice(0, 1)}</span>
+      </span>
+      <span className="mt-1 flex items-center gap-1 text-[10px] text-eventum-dim">
+        <span>{task.status.replace("_", " ")}</span>
+        <span>|</span>
+        <span>{priorityMark}</span>
+      </span>
+    </button>
+  );
+}
+
+function parseDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function toDateId(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function MeetingModal({

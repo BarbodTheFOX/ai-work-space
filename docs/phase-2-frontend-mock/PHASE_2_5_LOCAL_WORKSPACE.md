@@ -55,11 +55,11 @@ Status Board is the default.
 
 ## Calendar Board Behavior
 
-Calendar Board is a simple Notion-style weekly board.
+Calendar Board was introduced as a simple Notion-style weekly board in Phase 2.5 and was updated to a monthly board in Phase 2.6.
 
 - Shows Monday through Sunday columns.
 - Uses task `deadline` values to place cards.
-- Includes Previous week, Today, and Next week controls.
+- Includes Previous month, Today, and Next month controls.
 - Shows undated tasks in a separate No date section.
 - Uses existing task cards and opens the existing task drawer.
 
