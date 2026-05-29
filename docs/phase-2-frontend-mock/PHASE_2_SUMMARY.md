@@ -250,3 +250,11 @@ Verified:
 - `npm run lint` passes.
 - `npm run build` passes.
 - Local browser check confirms `/dashboard` loads and `/team-tasks` shows Status Board and Calendar Board without List View.
+
+## 11. Phase 3 Handoff Note
+
+Phase 3 has started as a staged backend foundation.
+
+Local mode remains available and should stay the default until Supabase project credentials, migrations, seed data, and auth user/profile mapping are configured.
+
+The frontend mock and localStorage workspace should not be removed until the Supabase-backed modules are proven route by route.

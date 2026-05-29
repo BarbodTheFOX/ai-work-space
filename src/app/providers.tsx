@@ -10,8 +10,17 @@ import {
   projects as seededProjects,
   tasks as seededTasks,
   TODAY,
-  users,
+  users as seededUsers,
 } from "@/data/mock-ops";
+import { getDataMode } from "@/lib/data/mode";
+import { getProfiles } from "@/lib/data/profiles";
+import { getProjects as getSupabaseProjects } from "@/lib/data/projects";
+import {
+  createTask as createSupabaseTask,
+  deleteTask as deleteSupabaseTask,
+  getTasks as getSupabaseTasks,
+  updateTask as updateSupabaseTask,
+} from "@/lib/data/tasks";
 import { mockRoutineCompletions } from "@/data/mock-routine-completions";
 import { mockRoutines } from "@/data/mock-routines";
 import { clearLocalData, loadLocalData, saveLocalData } from "@/lib/local-storage";
@@ -43,7 +52,7 @@ type CreateActionItemInput = Omit<MeetingActionItem, "id" | "task_id" | "created
 type OpsContextValue = {
   today: string;
   currentUser: User;
-  users: typeof users;
+  users: User[];
   projects: Project[];
   tasks: Task[];
   meetings: Meeting[];
@@ -87,6 +96,14 @@ function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 }
 
+function makeRecordId(prefix: string, dataMode: "local" | "supabase") {
+  if (dataMode === "supabase" && typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return makeId(prefix);
+}
+
 function addTimestamp<T extends object>(value: T) {
   const now = new Date().toISOString();
   return { ...value, created_at: now, updated_at: now };
@@ -107,9 +124,12 @@ function seedState() {
 }
 
 export function OpsProvider({ children }: { children: React.ReactNode }) {
+  const dataMode = getDataMode();
+  const isSupabase = dataMode === "supabase";
   const seeds = seedState();
   const [hydrated, setHydrated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState("user-founder");
+  const [localUsers, setLocalUsers] = useState<User[]>(seededUsers);
   const [localTasks, setLocalTasks] = useState<Task[]>(seeds.tasks);
   const [localProjects, setLocalProjects] = useState<Project[]>(seeds.projects);
   const [localMeetings, setLocalMeetings] = useState<Meeting[]>(seeds.meetings);
@@ -121,21 +141,43 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   const [localAiOutputs, setLocalAiOutputs] = useState<AiOutput[]>(seeds.aiOutputs);
 
   useEffect(() => {
-    setLocalTasks(loadLocalData(storageKeys.tasks, seeds.tasks));
-    setLocalProjects(loadLocalData(storageKeys.projects, seeds.projects));
-    setLocalMeetings(loadLocalData(storageKeys.meetings, seeds.meetings));
-    setLocalActionItems(loadLocalData(storageKeys.actionItems, seeds.actionItems));
-    setLocalNotes(loadLocalData(storageKeys.notes, seeds.notes));
-    setLocalRoutines(loadLocalData(storageKeys.routines, seeds.routines));
-    setLocalRoutineCompletions(loadLocalData(storageKeys.routineCompletions, seeds.routineCompletions));
-    setLocalActivityLogs(loadLocalData(storageKeys.activityLogs, seeds.activityLogs));
-    setLocalAiOutputs(loadLocalData(storageKeys.aiOutputs, seeds.aiOutputs));
-    setHydrated(true);
+    async function hydrate() {
+      if (isSupabase) {
+        try {
+          const [profiles, projects, tasks] = await Promise.all([getProfiles(), getSupabaseProjects(), getSupabaseTasks()]);
+          if (profiles.length > 0) {
+            setLocalUsers(profiles);
+            setCurrentUserId(profiles[0].id);
+          }
+          setLocalProjects(projects);
+          setLocalTasks(tasks);
+        } catch (error) {
+          console.warn("Supabase mode failed to hydrate. Falling back to local seed data.", error);
+        } finally {
+          setHydrated(true);
+        }
+        return;
+      }
+
+      setLocalUsers(seededUsers);
+      setLocalTasks(loadLocalData(storageKeys.tasks, seeds.tasks));
+      setLocalProjects(loadLocalData(storageKeys.projects, seeds.projects));
+      setLocalMeetings(loadLocalData(storageKeys.meetings, seeds.meetings));
+      setLocalActionItems(loadLocalData(storageKeys.actionItems, seeds.actionItems));
+      setLocalNotes(loadLocalData(storageKeys.notes, seeds.notes));
+      setLocalRoutines(loadLocalData(storageKeys.routines, seeds.routines));
+      setLocalRoutineCompletions(loadLocalData(storageKeys.routineCompletions, seeds.routineCompletions));
+      setLocalActivityLogs(loadLocalData(storageKeys.activityLogs, seeds.activityLogs));
+      setLocalAiOutputs(loadLocalData(storageKeys.aiOutputs, seeds.aiOutputs));
+      setHydrated(true);
+    }
+
+    hydrate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isSupabase]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || isSupabase) return;
     saveLocalData(storageKeys.tasks, localTasks);
     saveLocalData(storageKeys.projects, localProjects);
     saveLocalData(storageKeys.meetings, localMeetings);
@@ -147,6 +189,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
     saveLocalData(storageKeys.aiOutputs, localAiOutputs);
   }, [
     hydrated,
+    isSupabase,
     localActionItems,
     localActivityLogs,
     localAiOutputs,
@@ -158,7 +201,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
     localTasks,
   ]);
 
-  const currentUser = users.find((user) => user.id === currentUserId) ?? users[0];
+  const currentUser = localUsers.find((user) => user.id === currentUserId) ?? localUsers[0] ?? seededUsers[0];
 
   const logActivity = useCallback((action: string, entity_type: ActivityLog["entity_type"], entity_id: string, metadata: Record<string, string> = {}) => {
     setLocalActivityLogs((existing) => [
@@ -179,7 +222,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
     () => ({
       today: TODAY,
       currentUser,
-      users,
+      users: localUsers,
       projects: localProjects,
       tasks: localTasks,
       meetings: localMeetings,
@@ -193,7 +236,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       createTask: (task) => {
         const now = new Date().toISOString();
         const created: Task = {
-          id: task.id ?? makeId("task"),
+          id: task.id ?? makeRecordId("task", dataMode),
           title: task.title,
           description: task.description,
           owner_id: task.owner_id,
@@ -210,6 +253,11 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
         };
         setLocalTasks((existing) => [created, ...existing]);
         logActivity("created task", "task", created.id, { title: created.title });
+        if (isSupabase) {
+          createSupabaseTask(created).catch((error) => {
+            console.warn("Failed to create Supabase task.", error);
+          });
+        }
         return created;
       },
       updateTask: (taskId, updates) => {
@@ -217,6 +265,11 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
           existing.map((task) => (task.id === taskId ? { ...task, ...updates, updated_at: new Date().toISOString() } : task)),
         );
         logActivity("updated task", "task", taskId);
+        if (isSupabase) {
+          updateSupabaseTask(taskId, updates).catch((error) => {
+            console.warn("Failed to update Supabase task.", error);
+          });
+        }
       },
       updateTaskStatus: (taskId, status) => {
         setLocalTasks((existing) =>
@@ -228,21 +281,36 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
                   progress: status === "done" ? 100 : task.progress,
                   updated_at: new Date().toISOString(),
                 }
-              : task,
+            : task,
           ),
         );
+        if (isSupabase) {
+          updateSupabaseTask(taskId, status === "done" ? { status, progress: 100 } : { status }).catch((error) => {
+            console.warn("Failed to update Supabase task status.", error);
+          });
+        }
       },
       updateTaskProgress: (taskId, progress) => {
         setLocalTasks((existing) =>
           existing.map((task) => (task.id === taskId ? { ...task, progress, updated_at: new Date().toISOString() } : task)),
         );
+        if (isSupabase) {
+          updateSupabaseTask(taskId, { progress }).catch((error) => {
+            console.warn("Failed to update Supabase task progress.", error);
+          });
+        }
       },
       deleteTask: (taskId) => {
         setLocalTasks((existing) => existing.filter((task) => task.id !== taskId));
         logActivity("deleted task", "task", taskId);
+        if (isSupabase) {
+          deleteSupabaseTask(taskId).catch((error) => {
+            console.warn("Failed to delete Supabase task.", error);
+          });
+        }
       },
       createProject: (project) => {
-        const created: Project = { id: makeId("project"), ...addTimestamp(project) };
+        const created: Project = { id: makeRecordId("project", dataMode), ...addTimestamp(project) };
         setLocalProjects((existing) => [created, ...existing]);
         logActivity("created project", "project", created.id, { name: created.name });
         return created;
@@ -254,7 +322,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       },
       createMeeting: (meeting) => {
         const created: Meeting = {
-          id: makeId("meeting"),
+          id: makeRecordId("meeting", dataMode),
           created_by: currentUser.id,
           ...addTimestamp(meeting),
         };
@@ -273,7 +341,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       },
       createActionItem: (item) => {
         const created: MeetingActionItem = {
-          id: item.id ?? makeId("action"),
+          id: item.id ?? makeRecordId("action", dataMode),
           task_id: item.task_id ?? null,
           meeting_id: item.meeting_id,
           title: item.title,
@@ -297,7 +365,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
         if (!item || !meeting) return null;
         const now = new Date().toISOString();
         const task: Task = {
-          id: makeId("task"),
+          id: makeRecordId("task", dataMode),
           title: item.title,
           description: `Converted from meeting: ${meeting.title}`,
           owner_id: item.owner_id,
@@ -321,7 +389,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       },
       createNote: (note) => {
         const created: Note = {
-          id: makeId("note"),
+          id: makeRecordId("note", dataMode),
           created_by: currentUser.id,
           ...addTimestamp(note),
         };
@@ -352,7 +420,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       },
       createRoutine: (routine) => {
         const created: RoutineTask = {
-          id: makeId("routine"),
+          id: makeRecordId("routine", dataMode),
           active: true,
           created_by: currentUser.id,
           created_at: new Date().toISOString(),
@@ -375,10 +443,10 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       },
       createTasksFromAiSuggestions: (suggestions) => {
         const created = suggestions.map((suggestion) => {
-          const owner = users.find((user) => user.name === suggestion.owner_suggestion);
+          const owner = localUsers.find((user) => user.name === suggestion.owner_suggestion);
           const now = new Date().toISOString();
           return {
-            id: makeId("task"),
+            id: makeRecordId("task", dataMode),
             title: suggestion.title,
             description: suggestion.description ?? "Created from approved mock AI suggestion.",
             owner_id: owner?.id ?? currentUser.id,
@@ -400,6 +468,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       resetLocalWorkspace: () => {
         clearLocalData(allStorageKeys);
         const next = seedState();
+        setLocalUsers(seededUsers);
         setLocalTasks(next.tasks);
         setLocalProjects(next.projects);
         setLocalMeetings(next.meetings);
@@ -413,6 +482,9 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       currentUser,
+      dataMode,
+      isSupabase,
+      localUsers,
       localActionItems,
       localActivityLogs,
       localAiOutputs,

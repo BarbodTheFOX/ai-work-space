@@ -27,5 +27,15 @@ This folder keeps the Eventum Ops Cockpit planning and implementation documentat
 ## Phase 2 - Frontend Mock
 
 - [Phase 2 Summary](./phase-2-frontend-mock/PHASE_2_SUMMARY.md)
+- [Phase 2.5 Local Workspace](./phase-2-frontend-mock/PHASE_2_5_LOCAL_WORKSPACE.md)
+- [Phase 2.6 Monthly Calendar](./phase-2-frontend-mock/PHASE_2_6_MONTHLY_CALENDAR.md)
 
-Phase 2 is the current implementation phase: a frontend mock prototype using local mock data only.
+## Phase 3 - Backend Foundation
+
+- [Phase 3 Backend Foundation](./phase-3-backend/PHASE_3_BACKEND_FOUNDATION.md)
+- [Database Schema](./phase-3-backend/DATABASE_SCHEMA.md)
+- [RLS Policies](./phase-3-backend/RLS_POLICIES.md)
+- [Data Layer](./phase-3-backend/DATA_LAYER.md)
+- [Setup Supabase](./phase-3-backend/SETUP_SUPABASE.md)
+
+Phase 3 is the current implementation phase: staged Supabase backend foundation while keeping local mode available.
