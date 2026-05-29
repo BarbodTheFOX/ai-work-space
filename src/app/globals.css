@@ -41,3 +41,22 @@ select,
 textarea {
   color: #1f1f1f;
 }
+
+.field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #e6ded2;
+  background: #ffffff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.field:focus {
+  border-color: #d8cdbd;
+}
+
+.field:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}

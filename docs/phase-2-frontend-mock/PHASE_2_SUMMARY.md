@@ -203,3 +203,50 @@ What to test next:
 - Open `/team-tasks` and verify list/board interactions still work.
 - Check routine done/skip interactions.
 - Open note, meeting, project, report, and AI pages for visual consistency.
+
+## 10. Phase 2.5 - Usable Local Workspace
+
+Phase 2.5 turns the frontend mock into a usable local workspace while staying frontend-only.
+
+Implemented:
+
+- Added `localStorage` persistence for tasks, projects, meetings, meeting action items, notes, routines, routine completions, activity logs, and AI mock outputs.
+- Added create/edit/delete behavior for tasks, with Founder-only task deletion.
+- Replaced Team Tasks List View with Status Board and Calendar Board only.
+- Added a simple weekly Calendar Board using task deadlines.
+- Added local meeting creation and editable meeting details.
+- Added editable decisions and meeting action items.
+- Added conversion from meeting action item to local task.
+- Added local note creation, editing, linking, and deletion.
+- Added Founder project creation and project metadata editing.
+- Added routine creation, editing, activation/deactivation, deletion, and persistent completion state.
+- Added AI Assistant mock approval flow that creates approved suggestions as local tasks.
+- Added Settings reset action for local workspace data.
+- Reports now reflect the current local state.
+
+Changed files:
+
+- `src/app/providers.tsx`
+- `src/app/globals.css`
+- `src/components/tasks.tsx`
+- `src/components/page-sections.tsx`
+- `src/lib/local-storage.ts`
+- `src/lib/storage-keys.ts`
+- `docs/phase-2-frontend-mock/PHASE_2_5_LOCAL_WORKSPACE.md`
+- `docs/phase-2-frontend-mock/PHASE_2_SUMMARY.md`
+
+Still mock-only:
+
+- Supabase
+- Real backend persistence
+- Real authentication
+- Real API routes
+- Real AI API calls
+- Realtime updates
+- Report export
+
+Verified:
+
+- `npm run lint` passes.
+- `npm run build` passes.
+- Local browser check confirms `/dashboard` loads and `/team-tasks` shows Status Board and Calendar Board without List View.

@@ -1,61 +1,223 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
-import { actionItems, activityLogs, aiOutputs, meetings, notes, projects, tasks as seededTasks, TODAY, users } from "@/data/mock-ops";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  actionItems as seededActionItems,
+  activityLogs as seededActivityLogs,
+  aiOutputs as seededAiOutputs,
+  meetings as seededMeetings,
+  notes as seededNotes,
+  projects as seededProjects,
+  tasks as seededTasks,
+  TODAY,
+  users,
+} from "@/data/mock-ops";
 import { mockRoutineCompletions } from "@/data/mock-routine-completions";
 import { mockRoutines } from "@/data/mock-routines";
+import { clearLocalData, loadLocalData, saveLocalData } from "@/lib/local-storage";
 import { createMockRoutineCompletion } from "@/lib/routine-utils";
+import { allStorageKeys, storageKeys } from "@/lib/storage-keys";
 import type { RoutineCompletion, RoutineCompletionStatus, RoutineTask } from "@/types/routines";
-import type { Note, Task, TaskStatus, User } from "@/types/ops";
+import type {
+  ActivityLog,
+  AiOutput,
+  Meeting,
+  MeetingActionItem,
+  Note,
+  Priority,
+  Project,
+  Task,
+  TaskStatus,
+  User,
+} from "@/types/ops";
+
+type CreateTaskInput = Omit<Task, "id" | "created_by" | "created_at" | "updated_at" | "source" | "progress"> &
+  Partial<Pick<Task, "id" | "source" | "progress" | "created_by">>;
+
+type CreateProjectInput = Pick<Project, "name" | "description" | "status" | "owner_id">;
+type CreateMeetingInput = Pick<Meeting, "title" | "date" | "attendees" | "raw_notes" | "summary" | "decisions" | "project_id">;
+type CreateNoteInput = Pick<Note, "title" | "content" | "type" | "project_id" | "task_id" | "meeting_id">;
+type CreateRoutineInput = Pick<RoutineTask, "title" | "description" | "owner_id" | "project_id" | "frequency" | "priority">;
+type CreateActionItemInput = Omit<MeetingActionItem, "id" | "task_id" | "created_at"> & Partial<Pick<MeetingActionItem, "id" | "task_id">>;
 
 type OpsContextValue = {
   today: string;
   currentUser: User;
   users: typeof users;
-  projects: typeof projects;
+  projects: Project[];
   tasks: Task[];
-  meetings: typeof meetings;
-  actionItems: typeof actionItems;
+  meetings: Meeting[];
+  actionItems: MeetingActionItem[];
   notes: Note[];
-  activityLogs: typeof activityLogs;
-  aiOutputs: typeof aiOutputs;
+  activityLogs: ActivityLog[];
+  aiOutputs: AiOutput[];
   routines: RoutineTask[];
   routineCompletions: RoutineCompletion[];
   setCurrentUserId: (id: string) => void;
+  createTask: (task: CreateTaskInput) => Task;
+  updateTask: (taskId: string, updates: Partial<Task>) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   updateTaskProgress: (taskId: string, progress: number) => void;
-  createTask: (task: Pick<Task, "title" | "description" | "owner_id" | "project_id" | "priority" | "deadline" | "timeframe">) => void;
+  deleteTask: (taskId: string) => void;
+  createProject: (project: CreateProjectInput) => Project;
+  updateProject: (projectId: string, updates: Partial<Project>) => void;
+  createMeeting: (meeting: CreateMeetingInput) => Meeting;
+  updateMeeting: (meetingId: string, updates: Partial<Meeting>) => void;
+  deleteMeeting: (meetingId: string) => void;
+  createActionItem: (item: CreateActionItemInput) => MeetingActionItem;
+  updateActionItem: (itemId: string, updates: Partial<MeetingActionItem>) => void;
+  deleteActionItem: (itemId: string) => void;
+  convertActionItemToTask: (itemId: string) => Task | null;
+  createNote: (note: CreateNoteInput) => Note;
+  updateNote: (noteId: string, updates: Partial<Note>) => void;
+  deleteNote: (noteId: string) => void;
   markRoutine: (routineId: string, status: RoutineCompletionStatus) => void;
   clearRoutine: (routineId: string) => void;
+  createRoutine: (routine: CreateRoutineInput) => RoutineTask;
+  updateRoutine: (routineId: string, updates: Partial<RoutineTask>) => void;
+  deleteRoutine: (routineId: string) => void;
   toggleRoutineActive: (routineId: string) => void;
-  createRoutine: (routine: Pick<RoutineTask, "title" | "description" | "owner_id" | "project_id" | "frequency" | "priority">) => void;
+  createTasksFromAiSuggestions: (suggestions: Array<{ title: string; description?: string; priority?: Priority; deadline?: string; owner_suggestion?: string; timeframe?: Task["timeframe"] }>) => Task[];
+  resetLocalWorkspace: () => void;
 };
 
 const OpsContext = createContext<OpsContextValue | null>(null);
 
+function makeId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function addTimestamp<T extends object>(value: T) {
+  const now = new Date().toISOString();
+  return { ...value, created_at: now, updated_at: now };
+}
+
+function seedState() {
+  return {
+    tasks: seededTasks,
+    projects: seededProjects,
+    meetings: seededMeetings,
+    actionItems: seededActionItems,
+    notes: seededNotes,
+    routines: mockRoutines,
+    routineCompletions: mockRoutineCompletions,
+    activityLogs: seededActivityLogs,
+    aiOutputs: seededAiOutputs,
+  };
+}
+
 export function OpsProvider({ children }: { children: React.ReactNode }) {
+  const seeds = seedState();
+  const [hydrated, setHydrated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState("user-founder");
-  const [localTasks, setLocalTasks] = useState<Task[]>(seededTasks);
-  const [localRoutines, setLocalRoutines] = useState<RoutineTask[]>(mockRoutines);
-  const [localRoutineCompletions, setLocalRoutineCompletions] = useState<RoutineCompletion[]>(mockRoutineCompletions);
+  const [localTasks, setLocalTasks] = useState<Task[]>(seeds.tasks);
+  const [localProjects, setLocalProjects] = useState<Project[]>(seeds.projects);
+  const [localMeetings, setLocalMeetings] = useState<Meeting[]>(seeds.meetings);
+  const [localActionItems, setLocalActionItems] = useState<MeetingActionItem[]>(seeds.actionItems);
+  const [localNotes, setLocalNotes] = useState<Note[]>(seeds.notes);
+  const [localRoutines, setLocalRoutines] = useState<RoutineTask[]>(seeds.routines);
+  const [localRoutineCompletions, setLocalRoutineCompletions] = useState<RoutineCompletion[]>(seeds.routineCompletions);
+  const [localActivityLogs, setLocalActivityLogs] = useState<ActivityLog[]>(seeds.activityLogs);
+  const [localAiOutputs, setLocalAiOutputs] = useState<AiOutput[]>(seeds.aiOutputs);
+
+  useEffect(() => {
+    setLocalTasks(loadLocalData(storageKeys.tasks, seeds.tasks));
+    setLocalProjects(loadLocalData(storageKeys.projects, seeds.projects));
+    setLocalMeetings(loadLocalData(storageKeys.meetings, seeds.meetings));
+    setLocalActionItems(loadLocalData(storageKeys.actionItems, seeds.actionItems));
+    setLocalNotes(loadLocalData(storageKeys.notes, seeds.notes));
+    setLocalRoutines(loadLocalData(storageKeys.routines, seeds.routines));
+    setLocalRoutineCompletions(loadLocalData(storageKeys.routineCompletions, seeds.routineCompletions));
+    setLocalActivityLogs(loadLocalData(storageKeys.activityLogs, seeds.activityLogs));
+    setLocalAiOutputs(loadLocalData(storageKeys.aiOutputs, seeds.aiOutputs));
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    saveLocalData(storageKeys.tasks, localTasks);
+    saveLocalData(storageKeys.projects, localProjects);
+    saveLocalData(storageKeys.meetings, localMeetings);
+    saveLocalData(storageKeys.actionItems, localActionItems);
+    saveLocalData(storageKeys.notes, localNotes);
+    saveLocalData(storageKeys.routines, localRoutines);
+    saveLocalData(storageKeys.routineCompletions, localRoutineCompletions);
+    saveLocalData(storageKeys.activityLogs, localActivityLogs);
+    saveLocalData(storageKeys.aiOutputs, localAiOutputs);
+  }, [
+    hydrated,
+    localActionItems,
+    localActivityLogs,
+    localAiOutputs,
+    localMeetings,
+    localNotes,
+    localProjects,
+    localRoutineCompletions,
+    localRoutines,
+    localTasks,
+  ]);
 
   const currentUser = users.find((user) => user.id === currentUserId) ?? users[0];
+
+  const logActivity = useCallback((action: string, entity_type: ActivityLog["entity_type"], entity_id: string, metadata: Record<string, string> = {}) => {
+    setLocalActivityLogs((existing) => [
+      {
+        id: makeId("activity"),
+        user_id: currentUser.id,
+        action,
+        entity_type,
+        entity_id,
+        metadata,
+        created_at: new Date().toISOString(),
+      },
+      ...existing,
+    ]);
+  }, [currentUser.id]);
 
   const value = useMemo<OpsContextValue>(
     () => ({
       today: TODAY,
       currentUser,
       users,
-      projects,
+      projects: localProjects,
       tasks: localTasks,
-      meetings,
-      actionItems,
-      notes,
-      activityLogs,
-      aiOutputs,
+      meetings: localMeetings,
+      actionItems: localActionItems,
+      notes: localNotes,
+      activityLogs: localActivityLogs,
+      aiOutputs: localAiOutputs,
       routines: localRoutines,
       routineCompletions: localRoutineCompletions,
       setCurrentUserId,
+      createTask: (task) => {
+        const now = new Date().toISOString();
+        const created: Task = {
+          id: task.id ?? makeId("task"),
+          title: task.title,
+          description: task.description,
+          owner_id: task.owner_id,
+          created_by: task.created_by ?? currentUser.id,
+          project_id: task.project_id,
+          priority: task.priority,
+          status: task.status,
+          deadline: task.deadline,
+          timeframe: task.timeframe,
+          progress: task.progress ?? 0,
+          source: task.source ?? "manual",
+          created_at: now,
+          updated_at: now,
+        };
+        setLocalTasks((existing) => [created, ...existing]);
+        logActivity("created task", "task", created.id, { title: created.title });
+        return created;
+      },
+      updateTask: (taskId, updates) => {
+        setLocalTasks((existing) =>
+          existing.map((task) => (task.id === taskId ? { ...task, ...updates, updated_at: new Date().toISOString() } : task)),
+        );
+        logActivity("updated task", "task", taskId);
+      },
       updateTaskStatus: (taskId, status) => {
         setLocalTasks((existing) =>
           existing.map((task) =>
@@ -72,25 +234,107 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       },
       updateTaskProgress: (taskId, progress) => {
         setLocalTasks((existing) =>
-          existing.map((task) =>
-            task.id === taskId ? { ...task, progress, updated_at: new Date().toISOString() } : task,
-          ),
+          existing.map((task) => (task.id === taskId ? { ...task, progress, updated_at: new Date().toISOString() } : task)),
         );
       },
-      createTask: (task) => {
-        setLocalTasks((existing) => [
-          {
-            id: `task-local-${existing.length + 1}`,
-            created_by: currentUser.id,
-            status: "todo",
-            progress: 0,
-            source: "manual",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            ...task,
-          },
-          ...existing,
-        ]);
+      deleteTask: (taskId) => {
+        setLocalTasks((existing) => existing.filter((task) => task.id !== taskId));
+        logActivity("deleted task", "task", taskId);
+      },
+      createProject: (project) => {
+        const created: Project = { id: makeId("project"), ...addTimestamp(project) };
+        setLocalProjects((existing) => [created, ...existing]);
+        logActivity("created project", "project", created.id, { name: created.name });
+        return created;
+      },
+      updateProject: (projectId, updates) => {
+        setLocalProjects((existing) =>
+          existing.map((project) => (project.id === projectId ? { ...project, ...updates, updated_at: new Date().toISOString() } : project)),
+        );
+      },
+      createMeeting: (meeting) => {
+        const created: Meeting = {
+          id: makeId("meeting"),
+          created_by: currentUser.id,
+          ...addTimestamp(meeting),
+        };
+        setLocalMeetings((existing) => [created, ...existing]);
+        logActivity("created meeting", "meeting", created.id, { title: created.title });
+        return created;
+      },
+      updateMeeting: (meetingId, updates) => {
+        setLocalMeetings((existing) =>
+          existing.map((meeting) => (meeting.id === meetingId ? { ...meeting, ...updates, updated_at: new Date().toISOString() } : meeting)),
+        );
+      },
+      deleteMeeting: (meetingId) => {
+        setLocalMeetings((existing) => existing.filter((meeting) => meeting.id !== meetingId));
+        setLocalActionItems((existing) => existing.filter((item) => item.meeting_id !== meetingId));
+      },
+      createActionItem: (item) => {
+        const created: MeetingActionItem = {
+          id: item.id ?? makeId("action"),
+          task_id: item.task_id ?? null,
+          meeting_id: item.meeting_id,
+          title: item.title,
+          owner_id: item.owner_id,
+          deadline: item.deadline,
+          status: item.status,
+          created_at: new Date().toISOString(),
+        };
+        setLocalActionItems((existing) => [created, ...existing]);
+        return created;
+      },
+      updateActionItem: (itemId, updates) => {
+        setLocalActionItems((existing) => existing.map((item) => (item.id === itemId ? { ...item, ...updates } : item)));
+      },
+      deleteActionItem: (itemId) => {
+        setLocalActionItems((existing) => existing.filter((item) => item.id !== itemId));
+      },
+      convertActionItemToTask: (itemId) => {
+        const item = localActionItems.find((entry) => entry.id === itemId);
+        const meeting = item ? localMeetings.find((entry) => entry.id === item.meeting_id) : null;
+        if (!item || !meeting) return null;
+        const now = new Date().toISOString();
+        const task: Task = {
+          id: makeId("task"),
+          title: item.title,
+          description: `Converted from meeting: ${meeting.title}`,
+          owner_id: item.owner_id,
+          created_by: currentUser.id,
+          project_id: meeting.project_id,
+          priority: "normal",
+          status: "todo",
+          deadline: item.deadline,
+          timeframe: "one_time",
+          progress: 0,
+          source: "meeting",
+          created_at: now,
+          updated_at: now,
+        };
+        setLocalTasks((existing) => [task, ...existing]);
+        setLocalActionItems((existing) =>
+          existing.map((entry) => (entry.id === itemId ? { ...entry, task_id: task.id, status: "converted" } : entry)),
+        );
+        logActivity("converted action item to task", "task", task.id, { meeting: meeting.title });
+        return task;
+      },
+      createNote: (note) => {
+        const created: Note = {
+          id: makeId("note"),
+          created_by: currentUser.id,
+          ...addTimestamp(note),
+        };
+        setLocalNotes((existing) => [created, ...existing]);
+        return created;
+      },
+      updateNote: (noteId, updates) => {
+        setLocalNotes((existing) =>
+          existing.map((note) => (note.id === noteId ? { ...note, ...updates, updated_at: new Date().toISOString() } : note)),
+        );
+      },
+      deleteNote: (noteId) => {
+        setLocalNotes((existing) => existing.filter((note) => note.id !== noteId));
       },
       markRoutine: (routineId, status) => {
         const routine = localRoutines.find((item) => item.id === routineId);
@@ -106,25 +350,80 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
           existing.filter((item) => !(item.routine_id === routineId && item.date === TODAY)),
         );
       },
+      createRoutine: (routine) => {
+        const created: RoutineTask = {
+          id: makeId("routine"),
+          active: true,
+          created_by: currentUser.id,
+          created_at: new Date().toISOString(),
+          ...routine,
+        };
+        setLocalRoutines((existing) => [created, ...existing]);
+        return created;
+      },
+      updateRoutine: (routineId, updates) => {
+        setLocalRoutines((existing) => existing.map((routine) => (routine.id === routineId ? { ...routine, ...updates } : routine)));
+      },
+      deleteRoutine: (routineId) => {
+        setLocalRoutines((existing) => existing.filter((routine) => routine.id !== routineId));
+        setLocalRoutineCompletions((existing) => existing.filter((completion) => completion.routine_id !== routineId));
+      },
       toggleRoutineActive: (routineId) => {
         setLocalRoutines((existing) =>
           existing.map((routine) => (routine.id === routineId ? { ...routine, active: !routine.active } : routine)),
         );
       },
-      createRoutine: (routine) => {
-        setLocalRoutines((existing) => [
-          {
-            id: `routine-local-${existing.length + 1}`,
-            active: true,
+      createTasksFromAiSuggestions: (suggestions) => {
+        const created = suggestions.map((suggestion) => {
+          const owner = users.find((user) => user.name === suggestion.owner_suggestion);
+          const now = new Date().toISOString();
+          return {
+            id: makeId("task"),
+            title: suggestion.title,
+            description: suggestion.description ?? "Created from approved mock AI suggestion.",
+            owner_id: owner?.id ?? currentUser.id,
             created_by: currentUser.id,
-            created_at: new Date().toISOString(),
-            ...routine,
-          },
-          ...existing,
-        ]);
+            project_id: localProjects[0]?.id ?? "project-general-operations",
+            priority: suggestion.priority ?? "normal",
+            status: "todo",
+            deadline: suggestion.deadline ?? TODAY,
+            timeframe: suggestion.timeframe ?? "one_time",
+            progress: 0,
+            source: "ai",
+            created_at: now,
+            updated_at: now,
+          } satisfies Task;
+        });
+        setLocalTasks((existing) => [...created, ...existing]);
+        return created;
+      },
+      resetLocalWorkspace: () => {
+        clearLocalData(allStorageKeys);
+        const next = seedState();
+        setLocalTasks(next.tasks);
+        setLocalProjects(next.projects);
+        setLocalMeetings(next.meetings);
+        setLocalActionItems(next.actionItems);
+        setLocalNotes(next.notes);
+        setLocalRoutines(next.routines);
+        setLocalRoutineCompletions(next.routineCompletions);
+        setLocalActivityLogs(next.activityLogs);
+        setLocalAiOutputs(next.aiOutputs);
       },
     }),
-    [currentUser, localRoutineCompletions, localRoutines, localTasks],
+    [
+      currentUser,
+      localActionItems,
+      localActivityLogs,
+      localAiOutputs,
+      localMeetings,
+      localNotes,
+      localProjects,
+      localRoutineCompletions,
+      localRoutines,
+      localTasks,
+      logActivity,
+    ],
   );
 
   return <OpsContext.Provider value={value}>{children}</OpsContext.Provider>;
