@@ -1,28 +1,40 @@
-import type { RoutineCompletion, RoutineCompletionStatus, RoutineTask } from "@/types/routines";
+import { createClient } from "@/lib/supabase/client";
+import { mapRoutineRowToRoutine } from "@/lib/data/mappers";
+import type { RoutineTask } from "@/types/routines";
+
+export type RoutineInput = Omit<RoutineTask, "created_at">;
 
 export async function getRoutines(): Promise<RoutineTask[]> {
-  return [];
+  const supabase = createClient();
+  const { data, error } = await supabase.from("routine_tasks").select("*").order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []).map(mapRoutineRowToRoutine);
 }
 
-export async function createRoutine(_routine: Omit<RoutineTask, "id" | "active" | "created_by" | "created_at">): Promise<RoutineTask> {
-  throw new Error("Supabase routine writes are planned for Phase 3.1.");
+export async function createRoutine(routine: RoutineInput): Promise<RoutineTask> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("routine_tasks").insert(routine).select("*").single();
+
+  if (error) throw error;
+  return mapRoutineRowToRoutine(data);
 }
 
-export async function updateRoutine(_routineId: string, _updates: Partial<RoutineTask>): Promise<RoutineTask> {
-  throw new Error("Supabase routine updates are planned for Phase 3.1.");
+export async function updateRoutine(routineId: string, updates: Partial<RoutineTask>): Promise<RoutineTask> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("routine_tasks").update(updates).eq("id", routineId).select("*").single();
+
+  if (error) throw error;
+  return mapRoutineRowToRoutine(data);
 }
 
-export async function deleteRoutine(_routineId: string) {
-  throw new Error("Supabase routine deletes are planned for Phase 3.1.");
+export async function deleteRoutine(routineId: string) {
+  const supabase = createClient();
+  const { error } = await supabase.from("routine_tasks").delete().eq("id", routineId);
+
+  if (error) throw error;
 }
 
-export async function markRoutineCompletion(
-  _routineId: string,
-  _status: RoutineCompletionStatus,
-): Promise<RoutineCompletion> {
-  throw new Error("Supabase routine completions are planned for Phase 3.1.");
-}
-
-export async function clearRoutineCompletion(_routineId: string) {
-  throw new Error("Supabase routine completion clearing is planned for Phase 3.1.");
+export async function toggleRoutineActive(routine: RoutineTask): Promise<RoutineTask> {
+  return updateRoutine(routine.id, { active: !routine.active });
 }

@@ -2,7 +2,7 @@ import { isOverdue, percent } from "@/lib/utils";
 import type { Project, Task, User } from "@/types/ops";
 import type { RoutineCompletion, RoutineTask } from "@/types/routines";
 
-export function calculateReportsFromData({
+export function calculateReportsFromCollections({
   tasks,
   users,
   projects,
@@ -40,3 +40,5 @@ export function calculateReportsFromData({
     routineCount: routines.length,
   };
 }
+
+export const calculateReportsFromData = calculateReportsFromCollections;

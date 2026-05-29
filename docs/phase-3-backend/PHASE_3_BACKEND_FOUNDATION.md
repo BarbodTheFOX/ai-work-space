@@ -39,20 +39,32 @@ NEXT_PUBLIC_DATA_MODE=supabase
 
 Local mode remains the safest default and keeps the Phase 2.5 localStorage behavior.
 
-Supabase mode currently hydrates:
+Supabase mode hydrates:
 
 - profiles
 - projects
 - tasks
+- meetings
+- meeting action items
+- notes
+- routine tasks
+- routine completions
+- activity logs
+- AI outputs
 
-Supabase mode currently writes:
+Supabase mode writes:
 
-- task create
-- task update
-- task status/progress update
-- task delete
+- task CRUD
+- project create/update
+- meeting CRUD
+- action item CRUD and conversion to task
+- note CRUD
+- routine CRUD and active toggle
+- routine completion upsert/delete
+- activity log create
+- AI output create as stored records
 
-Other entities remain local/fallback until Phase 3.1.
+Local mode remains available and is still the default.
 
 ## What Was Intentionally Not Added
 

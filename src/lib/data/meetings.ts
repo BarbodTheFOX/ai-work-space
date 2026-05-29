@@ -1,33 +1,36 @@
-import type { Meeting, MeetingActionItem } from "@/types/ops";
+import { createClient } from "@/lib/supabase/client";
+import { mapMeetingRowToMeeting, mapMeetingToInsert, mapMeetingUpdates } from "@/lib/data/mappers";
+import type { Meeting } from "@/types/ops";
+
+export type MeetingInput = Omit<Meeting, "created_at" | "updated_at">;
 
 export async function getMeetings(): Promise<Meeting[]> {
-  return [];
+  const supabase = createClient();
+  const { data, error } = await supabase.from("meetings").select("*").order("date", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map(mapMeetingRowToMeeting);
 }
 
-export async function createMeeting(_meeting: Omit<Meeting, "id" | "created_by" | "created_at" | "updated_at">): Promise<Meeting> {
-  throw new Error("Supabase meeting writes are planned for Phase 3.1.");
+export async function createMeeting(meeting: MeetingInput): Promise<Meeting> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("meetings").insert(mapMeetingToInsert(meeting)).select("*").single();
+
+  if (error) throw error;
+  return mapMeetingRowToMeeting(data);
 }
 
-export async function updateMeeting(_meetingId: string, _updates: Partial<Meeting>): Promise<Meeting> {
-  throw new Error("Supabase meeting updates are planned for Phase 3.1.");
+export async function updateMeeting(meetingId: string, updates: Partial<Meeting>): Promise<Meeting> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("meetings").update(mapMeetingUpdates(updates)).eq("id", meetingId).select("*").single();
+
+  if (error) throw error;
+  return mapMeetingRowToMeeting(data);
 }
 
-export async function deleteMeeting(_meetingId: string) {
-  throw new Error("Supabase meeting deletes are planned for Phase 3.1.");
-}
+export async function deleteMeeting(meetingId: string) {
+  const supabase = createClient();
+  const { error } = await supabase.from("meetings").delete().eq("id", meetingId);
 
-export async function createActionItem(_item: Omit<MeetingActionItem, "id" | "task_id" | "created_at">): Promise<MeetingActionItem> {
-  throw new Error("Supabase action item writes are planned for Phase 3.1.");
-}
-
-export async function updateActionItem(_itemId: string, _updates: Partial<MeetingActionItem>): Promise<MeetingActionItem> {
-  throw new Error("Supabase action item updates are planned for Phase 3.1.");
-}
-
-export async function deleteActionItem(_itemId: string) {
-  throw new Error("Supabase action item deletes are planned for Phase 3.1.");
-}
-
-export async function convertActionItemToTask(_itemId: string) {
-  throw new Error("Supabase action item conversion is planned for Phase 3.1.");
+  if (error) throw error;
 }

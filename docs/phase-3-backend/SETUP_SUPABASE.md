@@ -30,6 +30,7 @@ Apply:
 
 ```text
 supabase/migrations/001_initial_schema.sql
+supabase/migrations/002_phase_3_1_fixes.sql
 ```
 
 You can run it through the Supabase SQL editor or with the Supabase CLI if the project is linked.
@@ -71,20 +72,22 @@ npm run dev
 When `NEXT_PUBLIC_DATA_MODE=supabase` and a valid Supabase project is configured:
 
 - profiles load from Supabase
-- projects load from Supabase
-- tasks load from Supabase
-- task create/update/delete writes to Supabase
+- projects load/create/update from Supabase
+- tasks load/create/update/delete from Supabase
+- meetings load/create/update/delete from Supabase
+- action items load/create/update/delete from Supabase
+- action items convert to tasks in Supabase
+- notes load/create/update/delete from Supabase
+- routines load/create/update/delete/toggle from Supabase
+- routine completions upsert/delete in Supabase
+- activity logs load/create from Supabase
+- AI outputs load/create as stored mock records
 
 ## 8. What Remains Local Or Mock-Only
 
-- meetings
-- meeting action items
-- notes
-- routine tasks
-- routine completions
-- reports
 - AI suggestions
 - realtime
 - protected app route enforcement
+- user-visible Supabase write error states
 
 These should move in Phase 3.1.

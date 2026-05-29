@@ -26,6 +26,7 @@ The initial Supabase schema is defined in:
 - Routine completions are separate from normal tasks.
 - Meeting action items can link to converted tasks.
 - AI outputs store structured JSON only.
+- `tasks.deadline` is nullable after `002_phase_3_1_fixes.sql` so the Monthly Calendar Board can support No Date tasks.
 
 ## Enums
 
@@ -48,3 +49,5 @@ The migration creates enums for:
 The `profiles.id` column is a UUID intended to match `auth.users.id`.
 
 For seed/demo data, placeholder UUIDs are inserted directly. In a real Supabase project, create Auth users first, then map or insert matching profile rows using those Auth user IDs.
+
+See [Auth Profile Mapping](./AUTH_PROFILE_MAPPING.md).

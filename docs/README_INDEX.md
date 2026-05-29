@@ -33,9 +33,13 @@ This folder keeps the Eventum Ops Cockpit planning and implementation documentat
 ## Phase 3 - Backend Foundation
 
 - [Phase 3 Backend Foundation](./phase-3-backend/PHASE_3_BACKEND_FOUNDATION.md)
+- [Phase 3.1 Supabase Connection](./phase-3-backend/PHASE_3_1_SUPABASE_CONNECTION.md)
+- [Data Connection Status](./phase-3-backend/DATA_CONNECTION_STATUS.md)
 - [Database Schema](./phase-3-backend/DATABASE_SCHEMA.md)
 - [RLS Policies](./phase-3-backend/RLS_POLICIES.md)
 - [Data Layer](./phase-3-backend/DATA_LAYER.md)
 - [Setup Supabase](./phase-3-backend/SETUP_SUPABASE.md)
+- [Auth Profile Mapping](./phase-3-backend/AUTH_PROFILE_MAPPING.md)
+- [Supabase Testing Checklist](./phase-3-backend/SUPABASE_TESTING_CHECKLIST.md)
 
-Phase 3 is the current implementation phase: staged Supabase backend foundation while keeping local mode available.
+Phase 3.1 is the current implementation phase: completing Supabase data connection while keeping local mode available.

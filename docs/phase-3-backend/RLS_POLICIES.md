@@ -41,7 +41,7 @@ This checks `profiles.role` for the current `auth.uid()`.
 
 ## Known Tightening Needed
 
-Phase 3.1 should tighten and test:
+Phase 3.2 should tighten and test:
 
 - exact meeting attendee update rules
 - project-level edit permissions
@@ -49,6 +49,8 @@ Phase 3.1 should tighten and test:
 - AI output creation/update rules
 - activity log insert rules
 - protected route behavior in Next.js
+- project delete exposure in UI
+- Auth profile foreign key after real Auth users exist
 
 ## Service Role Rule
 

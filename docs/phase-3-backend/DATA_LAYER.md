@@ -32,13 +32,44 @@ If the value is missing or unknown, the app defaults to `local`.
 Implemented in Supabase mode:
 
 - `getProfiles()`
+- `getCurrentProfile()`
+- `updateProfile()`
 - `getProjects()`
+- `createProject()`
+- `updateProject()`
+- `deleteProject()`
 - `getTasks()`
 - `createTask()`
 - `updateTask()`
 - `deleteTask()`
+- `getMeetings()`
+- `createMeeting()`
+- `updateMeeting()`
+- `deleteMeeting()`
+- `getActionItems()`
+- `createActionItem()`
+- `updateActionItem()`
+- `deleteActionItem()`
+- `convertActionItemToTask()`
+- `getNotes()`
+- `createNote()`
+- `updateNote()`
+- `deleteNote()`
+- `getRoutines()`
+- `createRoutine()`
+- `updateRoutine()`
+- `deleteRoutine()`
+- `toggleRoutineActive()`
+- `getRoutineCompletions()`
+- `markRoutineCompletion()`
+- `clearRoutineCompletion()`
+- `upsertRoutineCompletion()`
+- `getActivityLogs()`
+- `createActivityLog()`
+- `getAiOutputs()`
+- `createAiOutput()`
 
-The provider uses those functions when `NEXT_PUBLIC_DATA_MODE=supabase`.
+The provider uses these functions when `NEXT_PUBLIC_DATA_MODE=supabase`.
 
 ## Current Local Coverage
 
@@ -54,16 +85,9 @@ This preserves:
 - local AI mock suggestions
 - local reports
 
-## Planned Phase 3.1 Work
+## Planned Phase 3.2 Work
 
-Move these from local/fallback behavior to Supabase-backed functions:
-
-- meetings
-- meeting action items
-- notes
-- routine tasks
-- routine completions
-- activity logs
-- reports queries
-
-Keep the `useOps()` API stable while migrating each module.
+- Make provider mutations explicitly async.
+- Add user-visible write failure states.
+- Add protected-route behavior once auth/profile mapping is finalized.
+- Add query-level report functions if reports become expensive.

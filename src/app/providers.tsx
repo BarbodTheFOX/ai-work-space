@@ -12,9 +12,41 @@ import {
   TODAY,
   users as seededUsers,
 } from "@/data/mock-ops";
+import {
+  createActionItem as createSupabaseActionItem,
+  deleteActionItem as deleteSupabaseActionItem,
+  getActionItems,
+  updateActionItem as updateSupabaseActionItem,
+  convertActionItemToTask as convertSupabaseActionItemToTask,
+} from "@/lib/data/action-items";
+import { createActivityLog as createSupabaseActivityLog, getActivityLogs } from "@/lib/data/activity";
+import { getAiOutputs } from "@/lib/data/ai-outputs";
 import { getDataMode } from "@/lib/data/mode";
+import {
+  createMeeting as createSupabaseMeeting,
+  deleteMeeting as deleteSupabaseMeeting,
+  getMeetings,
+  updateMeeting as updateSupabaseMeeting,
+} from "@/lib/data/meetings";
+import { createNote as createSupabaseNote, deleteNote as deleteSupabaseNote, getNotes, updateNote as updateSupabaseNote } from "@/lib/data/notes";
 import { getProfiles } from "@/lib/data/profiles";
-import { getProjects as getSupabaseProjects } from "@/lib/data/projects";
+import {
+  createProject as createSupabaseProject,
+  getProjects as getSupabaseProjects,
+  updateProject as updateSupabaseProject,
+} from "@/lib/data/projects";
+import {
+  clearRoutineCompletion as clearSupabaseRoutineCompletion,
+  getRoutineCompletions,
+  markRoutineCompletion as markSupabaseRoutineCompletion,
+} from "@/lib/data/routine-completions";
+import {
+  createRoutine as createSupabaseRoutine,
+  deleteRoutine as deleteSupabaseRoutine,
+  getRoutines,
+  toggleRoutineActive as toggleSupabaseRoutineActive,
+  updateRoutine as updateSupabaseRoutine,
+} from "@/lib/data/routines";
 import {
   createTask as createSupabaseTask,
   deleteTask as deleteSupabaseTask,
@@ -144,13 +176,42 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
     async function hydrate() {
       if (isSupabase) {
         try {
-          const [profiles, projects, tasks] = await Promise.all([getProfiles(), getSupabaseProjects(), getSupabaseTasks()]);
+          const [
+            profiles,
+            projects,
+            tasks,
+            meetings,
+            actionItems,
+            notes,
+            routines,
+            routineCompletions,
+            activityLogs,
+            aiOutputs,
+          ] = await Promise.all([
+            getProfiles(),
+            getSupabaseProjects(),
+            getSupabaseTasks(),
+            getMeetings(),
+            getActionItems(),
+            getNotes(),
+            getRoutines(),
+            getRoutineCompletions(),
+            getActivityLogs(),
+            getAiOutputs(),
+          ]);
           if (profiles.length > 0) {
             setLocalUsers(profiles);
             setCurrentUserId(profiles[0].id);
           }
           setLocalProjects(projects);
           setLocalTasks(tasks);
+          setLocalMeetings(meetings);
+          setLocalActionItems(actionItems);
+          setLocalNotes(notes);
+          setLocalRoutines(routines);
+          setLocalRoutineCompletions(routineCompletions);
+          setLocalActivityLogs(activityLogs);
+          setLocalAiOutputs(aiOutputs);
         } catch (error) {
           console.warn("Supabase mode failed to hydrate. Falling back to local seed data.", error);
         } finally {
@@ -204,19 +265,28 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   const currentUser = localUsers.find((user) => user.id === currentUserId) ?? localUsers[0] ?? seededUsers[0];
 
   const logActivity = useCallback((action: string, entity_type: ActivityLog["entity_type"], entity_id: string, metadata: Record<string, string> = {}) => {
-    setLocalActivityLogs((existing) => [
-      {
-        id: makeId("activity"),
+    const created: ActivityLog = {
+        id: makeRecordId("activity", dataMode),
         user_id: currentUser.id,
         action,
         entity_type,
         entity_id,
         metadata,
         created_at: new Date().toISOString(),
-      },
-      ...existing,
-    ]);
-  }, [currentUser.id]);
+      };
+    setLocalActivityLogs((existing) => [created, ...existing]);
+    if (isSupabase) {
+      createSupabaseActivityLog({
+        user_id: created.user_id,
+        action,
+        entity_type,
+        entity_id,
+        metadata,
+      }).catch((error) => {
+        console.warn("Failed to create Supabase activity log.", error);
+      });
+    }
+  }, [currentUser.id, dataMode, isSupabase]);
 
   const value = useMemo<OpsContextValue>(
     () => ({
@@ -313,12 +383,22 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
         const created: Project = { id: makeRecordId("project", dataMode), ...addTimestamp(project) };
         setLocalProjects((existing) => [created, ...existing]);
         logActivity("created project", "project", created.id, { name: created.name });
+        if (isSupabase) {
+          createSupabaseProject(created).catch((error) => {
+            console.warn("Failed to create Supabase project.", error);
+          });
+        }
         return created;
       },
       updateProject: (projectId, updates) => {
         setLocalProjects((existing) =>
           existing.map((project) => (project.id === projectId ? { ...project, ...updates, updated_at: new Date().toISOString() } : project)),
         );
+        if (isSupabase) {
+          updateSupabaseProject(projectId, updates).catch((error) => {
+            console.warn("Failed to update Supabase project.", error);
+          });
+        }
       },
       createMeeting: (meeting) => {
         const created: Meeting = {
@@ -328,16 +408,31 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
         };
         setLocalMeetings((existing) => [created, ...existing]);
         logActivity("created meeting", "meeting", created.id, { title: created.title });
+        if (isSupabase) {
+          createSupabaseMeeting(created).catch((error) => {
+            console.warn("Failed to create Supabase meeting.", error);
+          });
+        }
         return created;
       },
       updateMeeting: (meetingId, updates) => {
         setLocalMeetings((existing) =>
           existing.map((meeting) => (meeting.id === meetingId ? { ...meeting, ...updates, updated_at: new Date().toISOString() } : meeting)),
         );
+        if (isSupabase) {
+          updateSupabaseMeeting(meetingId, updates).catch((error) => {
+            console.warn("Failed to update Supabase meeting.", error);
+          });
+        }
       },
       deleteMeeting: (meetingId) => {
         setLocalMeetings((existing) => existing.filter((meeting) => meeting.id !== meetingId));
         setLocalActionItems((existing) => existing.filter((item) => item.meeting_id !== meetingId));
+        if (isSupabase) {
+          deleteSupabaseMeeting(meetingId).catch((error) => {
+            console.warn("Failed to delete Supabase meeting.", error);
+          });
+        }
       },
       createActionItem: (item) => {
         const created: MeetingActionItem = {
@@ -351,13 +446,28 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
           created_at: new Date().toISOString(),
         };
         setLocalActionItems((existing) => [created, ...existing]);
+        if (isSupabase) {
+          createSupabaseActionItem(created).catch((error) => {
+            console.warn("Failed to create Supabase action item.", error);
+          });
+        }
         return created;
       },
       updateActionItem: (itemId, updates) => {
         setLocalActionItems((existing) => existing.map((item) => (item.id === itemId ? { ...item, ...updates } : item)));
+        if (isSupabase) {
+          updateSupabaseActionItem(itemId, updates).catch((error) => {
+            console.warn("Failed to update Supabase action item.", error);
+          });
+        }
       },
       deleteActionItem: (itemId) => {
         setLocalActionItems((existing) => existing.filter((item) => item.id !== itemId));
+        if (isSupabase) {
+          deleteSupabaseActionItem(itemId).catch((error) => {
+            console.warn("Failed to delete Supabase action item.", error);
+          });
+        }
       },
       convertActionItemToTask: (itemId) => {
         const item = localActionItems.find((entry) => entry.id === itemId);
@@ -385,6 +495,11 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
           existing.map((entry) => (entry.id === itemId ? { ...entry, task_id: task.id, status: "converted" } : entry)),
         );
         logActivity("converted action item to task", "task", task.id, { meeting: meeting.title });
+        if (isSupabase) {
+          convertSupabaseActionItemToTask({ item, meeting, createdBy: currentUser.id, taskId: task.id }).catch((error) => {
+            console.warn("Failed to convert Supabase action item to task.", error);
+          });
+        }
         return task;
       },
       createNote: (note) => {
@@ -394,15 +509,31 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
           ...addTimestamp(note),
         };
         setLocalNotes((existing) => [created, ...existing]);
+        logActivity("created note", "note", created.id, { title: created.title });
+        if (isSupabase) {
+          createSupabaseNote(created).catch((error) => {
+            console.warn("Failed to create Supabase note.", error);
+          });
+        }
         return created;
       },
       updateNote: (noteId, updates) => {
         setLocalNotes((existing) =>
           existing.map((note) => (note.id === noteId ? { ...note, ...updates, updated_at: new Date().toISOString() } : note)),
         );
+        if (isSupabase) {
+          updateSupabaseNote(noteId, updates).catch((error) => {
+            console.warn("Failed to update Supabase note.", error);
+          });
+        }
       },
       deleteNote: (noteId) => {
         setLocalNotes((existing) => existing.filter((note) => note.id !== noteId));
+        if (isSupabase) {
+          deleteSupabaseNote(noteId).catch((error) => {
+            console.warn("Failed to delete Supabase note.", error);
+          });
+        }
       },
       markRoutine: (routineId, status) => {
         const routine = localRoutines.find((item) => item.id === routineId);
@@ -412,11 +543,23 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
           completion,
           ...existing.filter((item) => !(item.routine_id === routineId && item.date === TODAY)),
         ]);
+        logActivity(`${status} routine`, "routine", routineId, { status });
+        if (isSupabase) {
+          markSupabaseRoutineCompletion({ routineId, userId: routine.owner_id, date: TODAY, status }).catch((error) => {
+            console.warn("Failed to mark Supabase routine completion.", error);
+          });
+        }
       },
       clearRoutine: (routineId) => {
+        const routine = localRoutines.find((item) => item.id === routineId);
         setLocalRoutineCompletions((existing) =>
           existing.filter((item) => !(item.routine_id === routineId && item.date === TODAY)),
         );
+        if (isSupabase && routine) {
+          clearSupabaseRoutineCompletion(routineId, routine.owner_id, TODAY).catch((error) => {
+            console.warn("Failed to clear Supabase routine completion.", error);
+          });
+        }
       },
       createRoutine: (routine) => {
         const created: RoutineTask = {
@@ -427,19 +570,41 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
           ...routine,
         };
         setLocalRoutines((existing) => [created, ...existing]);
+        logActivity("created routine", "routine", created.id, { title: created.title });
+        if (isSupabase) {
+          createSupabaseRoutine(created).catch((error) => {
+            console.warn("Failed to create Supabase routine.", error);
+          });
+        }
         return created;
       },
       updateRoutine: (routineId, updates) => {
         setLocalRoutines((existing) => existing.map((routine) => (routine.id === routineId ? { ...routine, ...updates } : routine)));
+        if (isSupabase) {
+          updateSupabaseRoutine(routineId, updates).catch((error) => {
+            console.warn("Failed to update Supabase routine.", error);
+          });
+        }
       },
       deleteRoutine: (routineId) => {
         setLocalRoutines((existing) => existing.filter((routine) => routine.id !== routineId));
         setLocalRoutineCompletions((existing) => existing.filter((completion) => completion.routine_id !== routineId));
+        if (isSupabase) {
+          deleteSupabaseRoutine(routineId).catch((error) => {
+            console.warn("Failed to delete Supabase routine.", error);
+          });
+        }
       },
       toggleRoutineActive: (routineId) => {
+        const routine = localRoutines.find((item) => item.id === routineId);
         setLocalRoutines((existing) =>
           existing.map((routine) => (routine.id === routineId ? { ...routine, active: !routine.active } : routine)),
         );
+        if (isSupabase && routine) {
+          toggleSupabaseRoutineActive(routine).catch((error) => {
+            console.warn("Failed to toggle Supabase routine.", error);
+          });
+        }
       },
       createTasksFromAiSuggestions: (suggestions) => {
         const created = suggestions.map((suggestion) => {
@@ -463,6 +628,13 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
           } satisfies Task;
         });
         setLocalTasks((existing) => [...created, ...existing]);
+        if (isSupabase) {
+          created.forEach((task) => {
+            createSupabaseTask(task).catch((error) => {
+              console.warn("Failed to create Supabase AI-suggested task.", error);
+            });
+          });
+        }
         return created;
       },
       resetLocalWorkspace: () => {
